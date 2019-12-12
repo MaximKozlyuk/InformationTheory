@@ -1,32 +1,37 @@
 package lz78;
 
+import lombok.Getter;
+
 import java.util.*;
 
-/**
- * Stores any byte[] as sequence of nodes with bytes.
- * Do not stores equivalent byte arrays. Only one sequence can be stored.
- * Do not stores empty array ( new byte[] {} ).
- * Maximum depth of tree = maximum length of byte[] stored in tree.
- */
-public class ByteTree {
+class ByteTree {
 
-    /**
-     * Tree starts from root, it might be any byte [-128..127]
-     */
     private final Node root;
 
+    /**
+     * amount of arrays, stored in tree.
+     * in other words - amount of nodes
+     */
+    @Getter
+    private int size = 0;
+    @Getter
+    private byte latestId = Byte.MIN_VALUE;
+
+    // this 0's is never taken in account (as an id -1), just for root creation
     public ByteTree() {
-        root = new Node((byte)0);   // this 0 is never take in account, just for root creation
+        root = new Node((byte)-1, (byte)0, (byte)0);
     }
 
     protected static class Node {
+
         private final byte val;
-        /**
-         * size obviously will never be > 256
-         */
+        private final byte id;
+        private final byte prevId;
         private final List<Node> leaves;
 
-        public Node(byte val) {
+        public Node(byte id, byte prevId, byte val) {
+            this.id = id;
+            this.prevId = prevId;
             this.val = val;
             this.leaves = new ArrayList<>();
         }
@@ -41,52 +46,54 @@ public class ByteTree {
             return null;
         }
 
-        public Node add (byte b) {
-            Node n = leavesContains(b);
-            if (n == null) {
-                n = new Node(b);
-                leaves.add(n);
-            }
-            return n;
+        public boolean add (Node n) {
+            return leaves.add(n);   // to simplify future optimization here
         }
+
     }
 
-    public boolean isEmpty() {
-        return root.leaves.size() == 0;
+    public boolean add(ByteBuffer buf) {
+        Node currentNode = root, nextNode;
+        byte[] bufArr = buf.getBuf();
+
+        for (int i = 0; i < buf.getSize(); i++) {
+             nextNode = currentNode.leavesContains(bufArr[i]);
+             if (nextNode == null) {
+                 nextNode = new Node((byte)size++, currentNode.id, bufArr[i]);
+                 currentNode.add(nextNode);
+                 return true;
+             }
+            currentNode = nextNode;
+        }
+        return false;
     }
 
-    public boolean contains(Object o) {
-        if (!(o instanceof byte[])) {
-            return false;
-        }
-        return noCheckContains((byte[]) o);
+    public byte[] getArr (byte lastNodeId) {
+        return null;
     }
 
-    public boolean add(byte[] bytes) {
-        if (bytes == null || bytes.length == 0) {
-            return false;
-        }
+    public boolean contains (byte[] arr) {
         Node currentNode = root;
-        for (int iByte = 0; iByte < bytes.length; iByte++) {
-            currentNode = currentNode.add(bytes[iByte]);
+        Node nextNode;
+        for (int i = 0; i < arr.length; i++) {
+            nextNode = currentNode.leavesContains(arr[i]);
+            if (nextNode != null) {
+                currentNode = nextNode;
+            } else {
+                return false;
+            }
         }
         return true;
     }
 
-    private boolean noCheckContains (byte[] bytes) {
-        return false;
-    }
-
     public void clear() {
-        root.leaves.clear(); // todo not efficient, need GC help
+        root.leaves.clear();
+        latestId = Byte.MIN_VALUE;
+        size = 0;
     }
 
-    /**
-     * @return amount of arrays, stored in tree.
-     * in other words - amount of lowest leaves.
-     */
-    public int size() {
-        return 0;
+    public boolean isEmpty() {
+        return root.leaves.size() == 0;
     }
 
 }

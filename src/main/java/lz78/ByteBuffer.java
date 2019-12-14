@@ -1,21 +1,22 @@
 package lz78;
 
-import java.util.Arrays;
+import lombok.Getter;
 
+@Getter
 public class ByteBuffer {
 
-    private final byte[] buf = new byte[256];
+    private final byte[] buf;
     private int size = 0;
 
     public ByteBuffer() {
+        buf = new byte[256];
     }
 
-    public byte[] getBuf() {
-        return buf;
-    }
-
-    public int getSize() {
-        return size;
+    public ByteBuffer(int bufCap) {
+        if (bufCap < 0) {
+            throw new IllegalArgumentException();
+        }
+        buf = new byte[bufCap];
     }
 
     public void append(byte b) {
@@ -32,12 +33,10 @@ public class ByteBuffer {
     public byte[] slice () {
         byte[] slice = new byte[size];
         System.arraycopy(buf, 0,slice, 0, size);
-        size = 0;
         return slice;
     }
 
     public void clear () {
-        Arrays.fill(buf, (byte)0);  // todo unnecessary
         size = 0;
     }
 

@@ -11,6 +11,12 @@ import java.util.*;
 public class Lz78Test {
 
     @Test
+    public void mapTest () {
+        final Map<Byte, Byte> chunkDictionary = new HashMap<>();
+        chunkDictionary.put(null,null);
+    }
+
+    @Test
     public void dummy () {
         HashMap m = new HashMap();
         byte[] a = new byte[]{1,2,3};
@@ -37,7 +43,7 @@ public class Lz78Test {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        lz.archiveFile(new File("./red_color.txt"), result);
+        lz.archiveFile(new File("./lorem65536.txt"), result);
     }
 
     @Test

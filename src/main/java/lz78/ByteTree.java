@@ -14,8 +14,11 @@ class ByteTree {
      */
     @Getter
     private int size = 0;
-    @Getter
     private byte latestId = Byte.MIN_VALUE;
+
+    public byte getLatestId() {
+        return (byte)(latestId - 1);
+    }
 
     // this 0's is never taken in account (as an id -1), just for root creation
     public ByteTree() {
@@ -47,7 +50,7 @@ class ByteTree {
         }
 
         public boolean add (Node n) {
-            return leaves.add(n);   // to simplify future optimization here
+            return leaves.add(n);   // todo optimize lookup in leaves, linear lookup -> classic binary search
         }
 
     }
@@ -59,8 +62,9 @@ class ByteTree {
         for (int i = 0; i < buf.getSize(); i++) {
              nextNode = currentNode.leavesContains(bufArr[i]);
              if (nextNode == null) {
-                 nextNode = new Node((byte)size++, currentNode.id, bufArr[i]);
+                 nextNode = new Node(latestId++, currentNode.id, bufArr[i]);
                  currentNode.add(nextNode);
+                size++;
                  return true;
              }
             currentNode = nextNode;
@@ -68,9 +72,32 @@ class ByteTree {
         return false;
     }
 
-    public byte[] getArr (byte lastNodeId) {
-        return null;
-    }
+
+//    // todo MB instead this, implement search in depth
+//    // we can exclude from search all nodes, which id is > than desired id
+//    // for now, array implementation is ok, but for 16bit version - not
+//    private static final class CachedArray {
+//        private final byte[] arr;
+//        private final byte id;
+//        public CachedArray(byte[] arr, byte id) {
+//            this.arr = arr;
+//            this.id = id;
+//        }
+//    }
+//
+//    // todo at least here should by binary search
+//    private final List<CachedArray> cache = new ArrayList<>();
+//    @Getter @Setter
+//    private boolean isCached = false;
+//
+//    public byte[] getArr (byte lastNodeId) {
+//        for (int i = 0; i < cache.size(); i++) {
+//            if (cache.get(i).id == lastNodeId) {
+//                return cache.get(i).arr;
+//            }
+//        }
+//        return null;
+//    }
 
     public boolean contains (byte[] arr) {
         Node currentNode = root;

@@ -1,6 +1,7 @@
 package lz78;
 
 import lombok.Getter;
+import lombok.Setter;
 
 import java.io.*;
 import java.util.*;
@@ -16,6 +17,8 @@ public class Lz78 {
     @Getter
     private int portionSize = DEFAULT_PORTION_SIZE;
 
+    private byte lastPhraseId = Byte.MIN_VALUE+1;
+
     private final ByteTree dictionary;  // might be local var
 
     public Lz78() {
@@ -24,14 +27,14 @@ public class Lz78 {
 
     public Lz78(int portionSize) {
         this();
-        this.portionSize = portionSize;
+        setPortionSize(portionSize);
     }
 
-    public void setPortionSize(int portionSize) {
-        if (portionSize % 2 != 0) {
+    public void setPortionSize(int size) {
+        if (size % 2 != 0) {
             throw new RuntimeException("portion size must be even");
         }
-        this.portionSize = portionSize;
+        this.portionSize = size;
     }
 
     public void archiveFile (File file, File archived) {
@@ -48,39 +51,45 @@ public class Lz78 {
         ) {
             long timeBegin = System.currentTimeMillis();
 
-
             final ByteBuffer buf = new ByteBuffer();
             int read;
-            byte phraseCounter = Byte.MIN_VALUE;
-            byte[] portion, phraseContainer = new byte[2];
+            byte phraseCounter = Byte.MIN_VALUE+1;
+            Byte currentLink;
+            byte[] portion;
+            List<Byte> cache = new ArrayList<>();
             do {
-                portion = new byte[portionSize];
+                portion = new byte[portionSize];    // redundant new mb
                 read = fis.read(portion);
                 for (int i = 0; i < read; i++) {
                     buf.append(portion[i]);
-                    if (dictionary.add(buf)) {
-                        phraseContainer[0] = portion[i];
-                        phraseContainer[1] = dictionary.getLatestId();
+                    currentLink = dictionary.add(buf);
+                    if (currentLink != null) {
                         phraseCounter++;
-                        fos.write(phraseContainer);
+                        cache.add(portion[i]);
+                        cache.add(currentLink);
                         if (phraseCounter == Byte.MAX_VALUE) { // is was written maximum amount of phrases
-                            // todo tail writing [tail size - n bytes] [n bytes of tail] [new chunk]
-                            fos.write(new byte[]{(byte)buf.getSize()});
-                            fos.write(buf.slice());
-                            phraseCounter = Byte.MIN_VALUE;
+                            cache.add((byte)buf.getSize());
+                            for (Byte b : buf) {
+                                cache.add(b);
+                            }
+                            writeCache(fos, cache);
+                            cache.clear();
+                            phraseCounter = Byte.MIN_VALUE+1;
                             dictionary.clear();
                         }
                         buf.clear();
                     }
                 }
             } while (read > 0);
+            if (cache.size() > 0) {
+                fos.write(cache.size() / 2);    // write amount of phrases
+                writeCache(fos, cache);
+            }
+            fos.write(new byte[]{(byte)buf.getSize()});
             if (buf.getSize() > 0) {
-                fos.write(new byte[]{(byte)buf.getSize()});
                 fos.write(buf.slice());
             }
-
             System.out.println("time spent: " + (System.currentTimeMillis() - timeBegin));
-
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -88,22 +97,51 @@ public class Lz78 {
         }
     }
 
+    private void writeCache (FileOutputStream fos, List<Byte> cache) throws IOException {
+        byte[] arr = new byte[cache.size()];
+        for (int i = 0 ; i < cache.size(); i++) {
+            arr[i] = cache.get(i);
+        }
+        fos.write(arr);
+    }
+
+    /**
+     *
+     * @param archived file to process
+     * @param unArchived file to write result in
+     */
     public void unArchiveFile (File archived, File unArchived) {
         dictionary.clear();
         try (FileInputStream fis = new FileInputStream(archived);
              FileOutputStream fos = new FileOutputStream(unArchived)
         ) {
             int read;
-            byte phraseCounter = Byte.MIN_VALUE;
-            byte[] chunkData = new byte[portionSize], assemble;
-
-            do {
-                read = fis.read(chunkData);
-                for (int i = 0; i < read; i += 2) { // process chunk
-
+            byte currentSize;
+            final List<Phrase> phrases = new ArrayList<>();
+            for (;;) {  // loop over chunks with tails
+                currentSize = (byte)fis.read(); // amount of phrases in chunk
+                if (currentSize < 1) {
+                    break;
                 }
-                // process tail
-            } while (read > 0);
+                byte[] chunkData = new byte[currentSize * 2];
+                read = fis.read(chunkData); // read should be equal to chunkData size else file - corrupted
+                byte[] buf;
+                for (int i = 0; i < read; i+=2) {
+                    buf = addPhrase(phrases, chunkData[i], chunkData[i+1]);
+                    fos.write(buf); // todo buffered writing
+                }
+                currentSize = (byte)fis.read(); // reads size of tail
+                if (currentSize < 1) {
+                    break;
+                }
+                byte[] tailData = new byte[currentSize];
+                read = fis.read(tailData);
+                fos.write(tailData);
+
+                System.out.println("chunk written. size=" + phrases.size() + " last phrase id=" + lastPhraseId);
+                phrases.clear();
+                lastPhraseId = Byte.MIN_VALUE+1;
+            }
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -111,33 +149,41 @@ public class Lz78 {
         }
     }
 
-    private static final class DecompressionDictionary {
-        final List<Phrase> chunkDictionary = new ArrayList<>();
-
-        public DecompressionDictionary() {
+    private byte[] addPhrase (final List<Phrase> phrases, byte val, byte link) {
+        Phrase newPhrase = new Phrase(lastPhraseId++, val, link);
+        if (link == Byte.MIN_VALUE) {
+            newPhrase.setAllPhrase(new byte[]{val});
+            phrases.add(newPhrase);
+            return newPhrase.getAllPhrase();
         }
-
-        public void addPhrase (byte val, byte link) {
-            // assemble phrase
-            ByteBuffer buf = new ByteBuffer();
-            while (link != 0) {
-
+        for (Phrase p : phrases) {
+            if (p.getId() == link) {
+                byte[] allPhrase = new byte[p.getAllPhrase().length+1];
+                System.arraycopy(p.getAllPhrase(), 0,allPhrase,0,p.getAllPhrase().length);
+                allPhrase[allPhrase.length-1] = val;
+                newPhrase.setAllPhrase(allPhrase);
+                phrases.add(newPhrase);
+                return newPhrase.getAllPhrase();
             }
-
         }
-
+        throw new FileCorruptionException("File seems corrupted");
     }
 
     @Getter
     private static final class Phrase {
-        private final byte[] allPhrase;
-        private final byte val;
-        private final byte id;
 
-        public Phrase(byte[] allPhrase, byte val, byte id) {
-            this.allPhrase = allPhrase;
-            this.val = val;
+        private static final byte[] emptyPhrase = new byte[]{};
+
+        @Setter
+        private byte[] allPhrase = emptyPhrase;
+        private final byte id;
+        private final byte val;
+        private final byte link;
+
+        public Phrase(byte id, byte val, byte link) {
             this.id = id;
+            this.val = val;
+            this.link = link;
         }
 
         @Override

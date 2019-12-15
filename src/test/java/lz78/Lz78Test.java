@@ -43,7 +43,27 @@ public class Lz78Test {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        lz.archiveFile(new File("./lorem65536.txt"), result);
+        //"./lorem65536.txt"
+        lz.archiveFile(new File("./lorem2048.txt"), result);
+    }
+
+    @Test
+    public void decompressionTest () {
+        Lz78 lz = new Lz78();
+        File result = new File("./decompression_result.txt");
+        try {
+            result.createNewFile();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        lz.unArchiveFile(new File("./lz_result.lz"), result);
+    }
+
+    @Test
+    public void resultsEqualityTest () {
+        File a = new File("./red_color.txt");
+        File b = new File("./decompression_result.txt");
+        assert Utils.checkFilesEquality(a, b);
     }
 
     @Test

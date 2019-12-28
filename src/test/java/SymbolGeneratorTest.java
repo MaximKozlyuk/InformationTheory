@@ -69,6 +69,7 @@ public class SymbolGeneratorTest {
         try {
             SymbolGenerator generator = new SymbolGenerator("./input.txt", "./output.txt");
             System.out.println(generator);
+            generator.setSize(128);
             generator.generateFile();
             System.out.println("\nResult probabilities:");
             List<ProbabilitiesVector.Probability> probabilities = generator.calcProbabilitiesInGenerateFile();

@@ -8,7 +8,7 @@ import java.util.*;
 
 /**
  * Simple file archive functionality.
- * todo 16bit version if this one succeed...
+ * todo 16bit version if this one succeed... (better on go)
  */
 public class Lz78 {
 
@@ -68,7 +68,7 @@ public class Lz78 {
                         cache.add(portion[i]);
                         cache.add(currentLink);
                         if (phraseCounter == Byte.MAX_VALUE) { // is was written maximum amount of phrases
-                            cache.add((byte)buf.getSize());
+                            cache.add(buf.getSize());
                             for (Byte b : buf) {
                                 cache.add(b);
                             }
@@ -120,7 +120,7 @@ public class Lz78 {
             final List<Phrase> phrases = new ArrayList<>();
             for (;;) {  // loop over chunks with tails
                 currentSize = (byte)fis.read(); // amount of phrases in chunk
-                if (currentSize < 1) {
+                if (currentSize == Byte.MIN_VALUE) {
                     break;
                 }
                 byte[] chunkData = new byte[currentSize * 2];
@@ -131,7 +131,7 @@ public class Lz78 {
                     fos.write(buf); // todo buffered writing
                 }
                 currentSize = (byte)fis.read(); // reads size of tail
-                if (currentSize < 1) {
+                if (currentSize == Byte.MIN_VALUE) {
                     break;
                 }
                 byte[] tailData = new byte[currentSize];

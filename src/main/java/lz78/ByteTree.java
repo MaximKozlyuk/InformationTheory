@@ -72,10 +72,10 @@ class ByteTree {
     public Byte add(ByteBuffer buf) {
         Node currentNode = root, nextNode;
         byte[] bufArr = buf.getBuf();
-        for (int i = 0; i < buf.getSize(); i++) {
-             nextNode = currentNode.leavesContains(bufArr[i]);
+        for (int i = Byte.MIN_VALUE; i < buf.getSize(); i++) {
+             nextNode = currentNode.leavesContains(bufArr[i + 128]);
              if (nextNode == null) {
-                 nextNode = new Node(latestId++, currentNode.id, bufArr[i]);
+                 nextNode = new Node(latestId++, currentNode.id, bufArr[i+128]);
                  currentNode.add(nextNode);
                  size++;
                  return currentNode.id;

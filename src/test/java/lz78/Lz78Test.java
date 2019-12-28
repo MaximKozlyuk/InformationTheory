@@ -5,6 +5,7 @@ import lombok.Setter;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.*;
 
@@ -34,6 +35,8 @@ public class Lz78Test {
         }
     }
 
+    private static final String SOURCE_FILE_NAME = "./text.txt";
+
     @Test
     public void lz78Test () {
         Lz78 lz = new Lz78();
@@ -44,7 +47,7 @@ public class Lz78Test {
             e.printStackTrace();
         }
         //"./lorem65536.txt"
-        lz.archiveFile(new File("./lorem2048.txt"), result);
+        lz.archiveFile(new File(SOURCE_FILE_NAME), result);
     }
 
     @Test
@@ -61,10 +64,11 @@ public class Lz78Test {
 
     @Test
     public void resultsEqualityTest () {
-        File a = new File("./red_color.txt");
+        File a = new File(SOURCE_FILE_NAME);
         File b = new File("./decompression_result.txt");
         assert Utils.checkFilesEquality(a, b);
     }
+
 
     @Test
     public void arrToStrTest () {
@@ -72,6 +76,18 @@ public class Lz78Test {
 
         String str = new String(arr1);
         System.out.println(str);
+    }
+
+    @Test
+    public void oneChunkTestFileGeneration () {
+        File f = new File("oneChunkTest.txt");
+        try (FileOutputStream fos = new FileOutputStream(f)) {
+            for (byte i = Byte.MIN_VALUE; i < Byte.MAX_VALUE; i++) {
+                fos.write(i);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Test

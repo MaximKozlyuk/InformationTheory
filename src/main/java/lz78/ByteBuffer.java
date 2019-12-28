@@ -1,17 +1,15 @@
 package lz78;
 
-import lombok.Getter;
-
 import java.util.Iterator;
 
 /**
  * Simple wrapper over byte array for buffering needs.
  */
-@Getter
+
 public class ByteBuffer implements Iterable<Byte> {
 
     private byte[] buf;
-    private int size = 0;
+    private byte size = Byte.MIN_VALUE;
 
     public ByteBuffer() {
         buf = new byte[256];
@@ -25,7 +23,8 @@ public class ByteBuffer implements Iterable<Byte> {
     }
 
     public void append(byte b) {
-        buf[size++] = b;
+        buf[size+128] = b;
+        size++;
     }
 
     @Deprecated // for tests only
@@ -37,18 +36,26 @@ public class ByteBuffer implements Iterable<Byte> {
 
     public byte[] slice () {
         byte[] slice = new byte[size];
-        System.arraycopy(buf, 0,slice, 0, size);
+        System.arraycopy(buf, 0,slice, 0, size+128);
         return slice;
     }
 
     public void clear () {
-        size = 0;
+        size = Byte.MIN_VALUE;
+    }
+
+    public byte[] getBuf() {
+        return buf;
+    }
+
+    public byte getSize() {
+        return size;
     }
 
     @Override
     public Iterator<Byte> iterator() {
         return new Iterator<Byte>() {
-            private int i = 0;
+            private int i = Byte.MIN_VALUE;
 
             @Override
             public boolean hasNext() {
@@ -57,7 +64,9 @@ public class ByteBuffer implements Iterable<Byte> {
 
             @Override
             public Byte next() {
-                return buf[i++];
+                byte b = buf[i+128];
+                i++;
+                return b;
             }
         };
     }
